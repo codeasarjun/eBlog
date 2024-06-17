@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>My Blog</h1>
+            <nav>
+                <ul>
+                    
+                    <li><a href="{{ url_for('logout') }}">Logout</a></li>
+                    <li><a href="{{ url_for('create_post') }}">Create Post</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <section class="profile">
+            <h2>Welcome, {{ username }}!</h2>
+            <p>This is your profile page. You can add more details here.</p>
+            
+            <h3>Your Posts:</h3>
+            <ul class="post-list">
+                {% for post in posts %}
+                <li class="post-item">
+                    <strong>{{ post.title }}</strong><br>
+                    {{ post.content }}<br>
+                    <em>Posted on {{ post.formatted_timestamp }}</em>
+                </li>
+                {% endfor %}
+            </ul>
+        </section>
+    </main>
+    
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 My Blog</p>
+        </div>
+    </footer>
+</body>
+</html>
