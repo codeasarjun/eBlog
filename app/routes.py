@@ -1,9 +1,12 @@
-from flask import render_template, request, redirect, url_for, flash,session # session for login
+from flask import render_template, request, redirect, url_for, flash,send_file,session # session for login
 from . import app, mongo
 from werkzeug.security import generate_password_hash,check_password_hash # for passord hashing 
 from .models import User, Post
 from datetime import datetime
 from bson import ObjectId  # Import ObjectId from bson
+from werkzeug.utils import secure_filename # for file upload
+from gridfs import GridFS
+import os
 @app.route('/')
 def index():
     posts = mongo.db.posts.find()
@@ -93,21 +96,69 @@ def view_post(post_id):
 @app.route('/create_post', methods=['GET', 'POST'])
 def create_post():
     if request.method == 'POST':
-       
-        #insertion of a new post into MongoDB
+        # Initialize GridFS for file upload handling
+        fs = GridFS(mongo.db)
+
+        # Get form data
         title = request.form.get('title')
         content = request.form.get('content')
-        author = session['username']  # to get logged in user
+        author = session['username']  # Assuming you have the username in session
 
-        new_post = {
-            'title': title,
-            'content': content,
-            'author': author,
-            'timestamp': datetime.now() 
-            }
-        mongo.db.posts.insert_one(new_post)
-        flash('Post created successfully', 'success')
-        return redirect(url_for('profile'))
+        # Handle file upload
+        if 'document' in request.files:
+            file = request.files['document']
+            print("file name",file)
+            if file.filename != '':
+                try:
+                    # Secure the filename before saving it
+                    filename = secure_filename(file.filename)
+                    print('file name',filename)
+                    # Save file to GridFS
+                    file_id = fs.put(file.stream, filename=filename, content_type=file.content_type)
+
+                    # Prepare new post document with file details
+                    new_post = {
+                        'title': title,
+                        'content': content,
+                        'author': author,
+                        'file_id': file_id,
+                        'filename': filename,
+                        'timestamp': datetime.now()
+                    }
+
+                    # Insert into MongoDB collection
+                    mongo.db.posts.insert_one(new_post)
+
+                    flash('Post created successfully', 'success')
+                    return redirect(url_for('profile'))
+
+                except Exception as e:
+                    flash(f'Error uploading file: {str(e)}', 'error')
+                    print("error ",str(e))
+                    app.logger.error(f"Error uploading file: {str(e)}")
+                    return redirect(url_for('create_post'))
+
+        else:
+            flash('No file part in the request', 'error')
 
     return render_template('create_post.html')
 
+
+
+@app.route('/get_file/<file_id>')
+def get_file(file_id):
+    # retrieve file from GridFS using file_id
+    fs = GridFS(mongo.db)
+    file_object = fs.get(ObjectId(file_id))
+    
+    # Serve the file to the user
+    filename = file_object.filename if file_object.filename else 'file'
+
+    # Serve the file to the user
+    response = send_file(file_object, as_attachment=True, attachment_filename=filename)
+    return response
+
+@app.route('/user_setting')
+def user_setting():
+    # need to add functionality where user can make a checkbox and then some JS or CSS should enabled
+    return "Hello user"
